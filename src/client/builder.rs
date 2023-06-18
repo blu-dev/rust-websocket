@@ -10,8 +10,8 @@ use std::borrow::Cow;
 use std::convert::Into;
 pub use url::{ParseError, Url};
 
-const DEFAULT_MAX_DATAFRAME_SIZE : usize = 1024*1024*100;
-const DEFAULT_MAX_MESSAGE_SIZE : usize = 1024*1024*200;
+const DEFAULT_MAX_DATAFRAME_SIZE: usize = 1024 * 1024 * 100;
+const DEFAULT_MAX_MESSAGE_SIZE: usize = 1024 * 1024 * 200;
 
 #[cfg(any(feature = "sync", feature = "async"))]
 mod common_imports {
@@ -515,7 +515,14 @@ impl<'u> ClientBuilder<'u> {
 		// validate
 		self.validate(&response)?;
 
-		Ok(Client::unchecked_with_limits(reader, response.headers, true, false, self.max_dataframe_size, self.max_dataframe_size))
+		Ok(Client::unchecked_with_limits(
+			reader,
+			response.headers,
+			true,
+			false,
+			self.max_dataframe_size,
+			self.max_dataframe_size,
+		))
 	}
 
 	/// Connect to a websocket server asynchronously.
@@ -803,7 +810,11 @@ impl<'u> ClientBuilder<'u> {
 			})
 			// output the final client and metadata
 			.map(move |(message, stream)| {
-				let codec = MessageCodec::new_with_limits(Context::Client, max_dataframe_size, max_message_size);
+				let codec = MessageCodec::new_with_limits(
+					Context::Client,
+					max_dataframe_size,
+					max_message_size,
+				);
 				let client = update_framed_codec(stream, codec);
 				(client, message.headers)
 			});
@@ -844,10 +855,12 @@ impl<'u> ClientBuilder<'u> {
 	fn build_request(&mut self) -> String {
 		// enter host if available (unix sockets don't have hosts)
 		if let Some(host) = self.url.host_str() {
-			self.headers.set(Host {
-				hostname: host.to_string(),
-				port: self.url.port(),
-			});
+			if !self.headers.has::<Host>() {
+				self.headers.set(Host {
+					hostname: host.to_string(),
+					port: self.url.port(),
+				});
+			}
 		}
 
 		// handle username/password from URL
